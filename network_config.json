@@ -1,0 +1,144 @@
+{
+	"AWSTemplateFormatVersion" : "2010-09-09",
+
+	"Outputs" : {
+		"SubNet10" : {
+			"Value" : { "Ref": "SubNet172161000" },
+			"Export" : {
+				"Name" : {"Fn::Sub": "${AWS::StackName}-SubNet10" }
+			}
+		},
+		"SubNet20" : {
+			"Value" : { "Ref": "SubNet172162000" },
+			"Export" : {
+				"Name" : {"Fn::Sub": "${AWS::StackName}-SubNet20" }
+			}
+		},
+		"VPC172" : {
+			"Value" : { "Ref": "VPC1721600" },
+			"Export" : {
+				"Name" : {"Fn::Sub": "${AWS::StackName}-VPC" }
+			}
+		}
+	},
+
+	"Resources"	: {
+		"VPC1721600" : {
+		  "Type" : "AWS::EC2::VPC",
+		  "Properties" : {
+				"CidrBlock" : "172.16.0.0/16",
+				"Tags" : [
+						{"Key" : "Name", "Value" : "VPC-172.16.0.0"	}
+					]
+			}
+		},		
+		
+		
+		"SubNet172161000" : {
+			"Type" : "AWS::EC2::Subnet",
+			"Properties" : {
+				"CidrBlock" : "172.16.10.0/24",
+				"VpcId" : { "Ref" : "VPC1721600" },
+				"AvailabilityZone" : { "Fn::Select" : ["0", {"Fn::GetAZs": {"Ref" : "AWS::Region"}}] },
+				"MapPublicIpOnLaunch": "True",
+				"Tags" : [{"Key":"Name", "Value":"SubNet-172.16.10.0"}]
+				
+			}
+		},
+		
+		"RouteTable172161000" : {
+			"Type" : "AWS::EC2::RouteTable",
+			"Properties" : {
+				"VpcId" : {"Ref" : "VPC1721600"},
+				"Tags" : [{"Key":"Name", "Value":"RT172161000"}]
+			}			
+		},
+		
+		"RTAssociationRouteTable172161000" : {
+			"Type" : "AWS::EC2::SubnetRouteTableAssociation",
+			"Properties" : {
+				"SubnetId" : { "Ref" : "SubNet172161000" },
+				"RouteTableId" : { "Ref" : "RouteTable172161000" }
+			}
+		},
+		
+		"Route1721610000toIPGW" : {
+			"Type" : "AWS::EC2::Route",
+			"DependsOn" : "IGW1721600",
+			"Properties" : {
+				"RouteTableId" : { "Ref" : "RouteTable172161000" },
+				"DestinationCidrBlock" : "0.0.0.0/0",
+				"GatewayId" : { "Ref" : "IGW1721600" }
+			}
+		},
+				
+		"SubNet172162000" : {
+			"Type" : "AWS::EC2::Subnet",
+			"Properties" : {
+				"CidrBlock" : "172.16.20.0/24",
+				"VpcId" : { "Ref" : "VPC1721600" },
+				"AvailabilityZone" : { "Fn::Select" : ["2", {"Fn::GetAZs": {"Ref" : "AWS::Region"}}] },
+				"Tags" : [{"Key":"Name", "Value":"SubNet-172.16.20.0"}]
+			}
+		},
+		
+		"RouteTable172162000" : {
+			"Type" : "AWS::EC2::RouteTable",
+			"Properties" : {
+				"VpcId" : {"Ref" : "VPC1721600"},
+				"Tags" : [{"Key":"Name", "Value":"RT172162000"}]
+			}			
+		},
+		
+		"RTAssociationRouteTable172162000" : {
+			"Type" : "AWS::EC2::SubnetRouteTableAssociation",
+			"Properties" : {
+				"SubnetId" : { "Ref" : "SubNet172162000" },
+				"RouteTableId" : { "Ref" : "RouteTable172162000" }
+			}
+		},	
+		
+		"Route1721620000toNAT" : {
+			"Type" : "AWS::EC2::Route",
+			"DependsOn" : "NATGW1721600",
+			"Properties" : {
+				"RouteTableId" : { "Ref" : "RouteTable172162000" },
+				"DestinationCidrBlock" : "0.0.0.0/0",
+				"NatGatewayId" : { "Ref" : "NATGW1721600" }
+			}			
+		},
+		
+		"IGW1721600": {
+			"Type": "AWS::EC2::InternetGateway",
+			"Properties" : {
+				"Tags" : [ {"Key": "Name", "Value": "IGW-172.16.0.0" }]
+			}
+		},
+		
+		"AttachGatewayIGW1721600" : {
+			"Type" : "AWS::EC2::VPCGatewayAttachment",
+			"Properties" : {
+				"VpcId" : { "Ref" : "VPC1721600" },
+				"InternetGatewayId" : { "Ref" : "IGW1721600" }
+			}
+		},
+		
+		"EIPtoNatGW" : {
+			"DependsOn" : "AttachGatewayIGW1721600",
+			"Type" : "AWS::EC2::EIP",
+			"Properties" : {
+			"Domain" : "vpc"
+			}
+		},
+
+		"NATGW1721600" : {
+			"Type" : "AWS::EC2::NatGateway",
+			"DependsOn" : "EIPtoNatGW",
+			"Properties" : {
+			"AllocationId" : { "Fn::GetAtt" : ["EIPtoNatGW", "AllocationId"]},
+			"SubnetId" : { "Ref" : "SubNet172161000"},
+			"Tags" : [ {"Key" : "Name", "Value" : "NATGW-172.16.0.0" } ]
+			}
+		}		
+	}
+}

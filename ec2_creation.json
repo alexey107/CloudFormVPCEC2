@@ -1,0 +1,64 @@
+{
+	"AWSTemplateFormatVersion" : "2010-09-09",
+	
+	"Mappings" : {
+		"RegionMap" : {
+			"us-east-2" : { "HVM64" : "ami-0d8f6eb4f641ef691", "HVMG2" : "ami-0f378490dca16e3f4" }		
+		}
+	},
+	
+	"Resources"	: {
+	
+		"SGSSH" : {
+			"Type": "AWS::EC2::SecurityGroup",	
+			"Properties": {
+				"GroupName": "SSH+PING_ALLOW",
+				"GroupDescription": "SSH+PING_ALLOW",
+				"VpcId": { "Fn::ImportValue": "VPC-172-16-0-0-VPC" },
+				"SecurityGroupIngress": [ 
+					{
+						"CidrIp" : "0.0.0.0/0",
+						"ToPort" : 22,
+						"FromPort" : 22,
+						"IpProtocol": "tcp"
+					},
+					{
+						"CidrIp" : "0.0.0.0/0",
+						"IpProtocol": "icmp",
+						"ToPort" : -1,
+						"FromPort" : -1
+					}
+				]
+				
+			}
+		},
+	
+		"Ec2InstanceDMZ00" : {
+			"Type" : "AWS::EC2::Instance",
+			"Properties" : {
+				"ImageId" : { "Fn::FindInMap" : [ "RegionMap", { "Ref" : "AWS::Region" }, "HVM64" ]},
+				"InstanceType" : "t2.micro",
+				"KeyName" : "gis_ec2",
+				"NetworkInterfaces" : [ {
+					"SubnetId" : { "Fn::ImportValue": "VPC-172-16-0-0-SubNet10" },
+					"DeviceIndex": "0",
+					"GroupSet": [{"Ref": "SGSSH"}]
+				} ]
+			}
+		},
+		
+		"Ec2InstancePRIV00" : {
+			"Type" : "AWS::EC2::Instance",
+			"Properties" : {
+				"ImageId" : { "Fn::FindInMap" : [ "RegionMap", { "Ref" : "AWS::Region" }, "HVM64" ]},
+				"InstanceType" : "t2.micro",
+				"KeyName" : "gis_ec2",
+				"NetworkInterfaces" : [ {
+					"SubnetId" : { "Fn::ImportValue": "VPC-172-16-0-0-SubNet20" },
+					"DeviceIndex": "0",
+					"GroupSet": [{"Ref": "SGSSH"}]
+				} ]
+			}
+		}
+	}
+}
